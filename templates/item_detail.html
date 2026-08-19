@@ -105,9 +105,12 @@
       <hr>
 
       {% if item.status == 'available' %}
-        <a href="{{ url_for('ticket', item_id=item.id) }}" class="btn btn-solicitar mb-2">
-          <i class="bi bi-hand-index me-2"></i>Me interesa — Solicitar
+        <a href="https://t.corp.amazon.com/D513389296" target="_blank" class="btn btn-solicitar mb-2">
+          <i class="bi bi-ticket-perforated me-2"></i>Me interesa — Abrir Ticket
         </a>
+        <div class="text-center mt-1 mb-2 p-2 rounded" style="background:#eafaf1;font-size:.82rem;color:#1a7a4a;">
+          <i class="bi bi-info-circle me-1"></i>Indica en el ticket el artículo: <strong>{{ item.title }}</strong>
+        </div>
         {% if ticket_count > 0 %}
           <p class="text-center text-muted" style="font-size:.8rem;">
             <i class="bi bi-people me-1"></i>{{ ticket_count }} persona{{ 's' if ticket_count>1 }} ha solicitado este artículo
