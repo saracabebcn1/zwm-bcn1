@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Publicar artículo · ZeroWaste Market BCN1{% endblock %}
+
+{% block head %}
+<style>
+  .publish-card { background:#fff; border-radius:16px; padding:2rem;
+                   box-shadow:0 2px 12px rgba(0,0,0,.08); max-width:640px; margin:auto; }
+  .form-label { font-weight:600; font-size:.88rem; }
+  .photo-preview-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; margin-top:.5rem; }
+  .photo-preview-grid img { border-radius:10px; width:100%; height:110px; object-fit:cover; }
+  .photo-preview-grid .empty-slot {
+    border-radius:10px; border:2px dashed #c8e6c9; height:110px;
+    display:flex; align-items:center; justify-content:center;
+    color:#ccc; font-size:2rem;
+  }
+  .btn-publish {
+    background:linear-gradient(135deg,#1a7a4a,#27ae60);
+    border:none; color:#fff; font-weight:700; border-radius:12px;
+    padding:.7rem; width:100%; font-size:1rem;
+  }
+  .btn-publish:hover { opacity:.88; color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="publish-card">
+  <div class="text-center mb-4">
+    <span style="font-size:2.5rem">📦</span>
+    <h3 class="fw-bold mt-2">Publicar artículo</h3>
+    <p class="text-muted" style="font-size:.88rem">Añade material disponible para reutilizar en BCN1</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+
+    <div class="mb-3">
+      <label class="form-label">Nombre / Referencia <span class="text-danger">*</span></label>
+      <input type="text" name="title" class="form-control"
+             placeholder="ej: Silla de oficina con ruedas" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Categoría</label>
+      <select name="category_id" class="form-select">
+        <option value="">— Sin categoría —</option>
+        {% for cat in categories %}
+          <option value="{{ cat.id }}">{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Medidas / Información técnica</label>
+      <textarea name="measurements" class="form-control" rows="2"
+                placeholder="ej: Alto 90cm · Ancho 60cm · Profundo 55cm · Color negro"></textarea>
+    </div>
+
+    <div class="mb-4">
+      <label class="form-label">Descripción</label>
+      <textarea name="description" class="form-control" rows="3"
+                placeholder="Estado del artículo, detalles relevantes, ubicación actual…"></textarea>
+    </div>
+
+    <!-- Photos -->
+    <div class="mb-4">
+      <label class="form-label">Fotos (máx. 3)</label>
+      <div class="photo-preview-grid" id="previewGrid">
+        <div class="empty-slot" id="slot0"><i class="bi bi-camera"></i></div>
+        <div class="empty-slot" id="slot1"><i class="bi bi-camera"></i></div>
+        <div class="empty-slot" id="slot2"><i class="bi bi-camera"></i></div>
+      </div>
+      <div class="mt-2">
+        <input type="file" name="photo1" id="photo1" class="form-control form-control-sm mb-1"
+               accept="image/*" onchange="preview(this,'slot0')">
+        <input type="file" name="photo2" id="photo2" class="form-control form-control-sm mb-1"
+               accept="image/*" onchange="preview(this,'slot1')">
+        <input type="file" name="photo3" id="photo3" class="form-control form-control-sm"
+               accept="image/*" onchange="preview(this,'slot2')">
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-publish">
+      <i class="bi bi-cloud-upload me-2"></i>Publicar artículo
+    </button>
+    <a href="{{ url_for('admin_panel') }}"
+       class="btn btn-outline-secondary w-100 mt-2">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function preview(input, slotId) {
+  const slot = document.getElementById(slotId);
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      slot.innerHTML = `<img src="${e.target.result}" alt="preview">`;
+      slot.className = '';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

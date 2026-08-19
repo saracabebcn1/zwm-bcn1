@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Acceso Admin · ZeroWaste Market BCN1{% endblock %}
+{% block content %}
+<div style="max-width:380px;margin:5rem auto;">
+  <div class="bg-white rounded-4 p-4 shadow-sm text-center">
+    <span style="font-size:3rem">🔐</span>
+    <h4 class="fw-bold mt-2 mb-1">Acceso administrador</h4>
+    <p class="text-muted mb-4" style="font-size:.85rem">ZeroWaste Market · BCN1</p>
+    {% with msgs = get_flashed_messages(with_categories=True) %}
+      {% for cat, msg in msgs %}
+        <div class="alert alert-{{ cat }} py-2">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="post">
+      <input type="password" name="code" class="form-control mb-3 text-center"
+             placeholder="Código de acceso" autofocus>
+      <button class="btn w-100 text-white fw-bold"
+              style="background:linear-gradient(135deg,#1a7a4a,#27ae60);border-radius:10px;">
+        Entrar
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

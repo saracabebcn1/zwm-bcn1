@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Panel Admin · ZeroWaste Market BCN1{% endblock %}
+
+{% block head %}
+<style>
+  .section-title { font-weight:800; font-size:1.1rem; border-left:4px solid #27ae60;
+                    padding-left:.75rem; margin-bottom:1rem; }
+  .admin-card { background:#fff; border-radius:14px; padding:1.3rem;
+                 box-shadow:0 1px 8px rgba(0,0,0,.07); margin-bottom:1rem; }
+  .item-row { display:flex; align-items:center; gap:1rem; padding:.75rem 0;
+               border-bottom:1px solid #f0f0f0; }
+  .item-row:last-child { border-bottom:none; }
+  .item-thumb { width:60px; height:60px; object-fit:cover; border-radius:8px; flex-shrink:0; }
+  .item-thumb-empty { width:60px; height:60px; background:#eee; border-radius:8px;
+                       display:flex; align-items:center; justify-content:center;
+                       color:#ccc; flex-shrink:0; }
+  .ticket-row { border-bottom:1px solid #f5f5f5; padding:.6rem 0; }
+  .ticket-row:last-child { border-bottom:none; }
+  .pending-dot { width:8px;height:8px;background:#e74c3c;border-radius:50%;display:inline-block; }
+  .tab-btn { border:none; background:none; padding:.5rem 1rem; font-weight:600;
+              color:#666; border-bottom:3px solid transparent; cursor:pointer; }
+  .tab-btn.active { color:#1a7a4a; border-bottom-color:#27ae60; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0">Panel de administración</h2>
+  <a href="{{ url_for('publish') }}" class="btn text-white fw-semibold"
+     style="background:#27ae60;border-radius:10px;">
+    <i class="bi bi-plus-lg me-1"></i>Publicar artículo
+  </a>
+</div>
+
+<!-- Tabs -->
+<div class="border-bottom mb-4">
+  <button class="tab-btn active" onclick="showTab('tab-items',this)">
+    <i class="bi bi-box-seam me-1"></i>Artículos ({{ items|length }})
+  </button>
+  <button class="tab-btn" onclick="showTab('tab-tickets',this)">
+    <i class="bi bi-ticket me-1"></i>Solicitudes
+    {% set pending = tickets|selectattr('status','eq','pending')|list|length %}
+    {% if pending > 0 %}
+      <span class="badge bg-danger ms-1">{{ pending }}</span>
+    {% endif %}
+  </button>
+  <button class="tab-btn" onclick="showTab('tab-categories',this)">
+    <i class="bi bi-tags me-1"></i>Categorías
+  </button>
+</div>
+
+<!-- ITEMS TAB -->
+<div id="tab-items">
+  {% if items %}
+    <div class="admin-card">
+      {% for item in items %}
+      <div class="item-row">
+        {% if item.cover %}
+          <img src="{{ url_for('uploaded_file', filename=item.cover) }}" class="item-thumb" alt="">
+        {% else %}
+          <div class="item-thumb-empty"><i class="bi bi-image"></i></div>
+        {% endif %}
+        <div class="flex-grow-1 min-w-0">
+          <div class="fw-semibold text-truncate">{{ item.title }}</div>
+          <div class="text-muted" style="font-size:.78rem">
+            {{ item.cat_name or '—' }} · {{ item.created_at[:10] }}
+          </div>
+          {% if item.pending_tickets > 0 %}
+            <span class="badge bg-danger" style="font-size:.7rem">
+              {{ item.pending_tickets }} solicitud{{ 'es' if item.pending_tickets>1 }}
+            </span>
+          {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+          <form method="post" action="{{ url_for('set_status', item_id=item.id) }}">
+            <select name="status" class="form-select form-select-sm" style="width:130px"
+                    onchange="this.form.submit()">
+              <option value="available"   {{ 'selected' if item.status=='available' }}>✅ Disponible</option>
+              <option value="reserved"    {{ 'selected' if item.status=='reserved' }}>🟡 Reservado</option>
+              <option value="in_progress" {{ 'selected' if item.status=='in_progress' }}>🔧 En proceso</option>
+              <option value="delivered"   {{ 'selected' if item.status=='delivered' }}>⬜ Entregado</option>
+            </select>
+          </form>
+          <a href="{{ url_for('item_detail', item_id=item.id) }}"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-eye"></i>
+          </a>
+          <form method="post" action="{{ url_for('delete_item', item_id=item.id) }}"
+                onsubmit="return confirm('¿Eliminar «{{ item.title }}»?')">
+            <button class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <div style="font-size:3rem">📦</div>
+      <p class="mt-2">No hay artículos publicados aún</p>
+      <a href="{{ url_for('publish') }}" class="btn btn-success">Publicar el primero</a>
+    </div>
+  {% endif %}
+</div>
+
+<!-- TICKETS TAB -->
+<div id="tab-tickets" style="display:none">
+  {% if tickets %}
+    <div class="admin-card">
+      {% for t in tickets %}
+      <div class="ticket-row">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            {% if t.status == 'pending' %}
+              <span class="pending-dot me-1"></span>
+            {% else %}
+              <i class="bi bi-check-circle-fill text-success me-1"></i>
+            {% endif %}
+            <strong>{{ t.name }}</strong>
+            <span class="text-muted ms-1" style="font-size:.82rem">· @{{ t.alias }} · {{ t.department }}</span>
+          </div>
+          <span class="text-muted" style="font-size:.75rem">{{ t.created_at[:16].replace('T',' ') }}</span>
+        </div>
+        <div class="ms-3 mt-1" style="font-size:.85rem; color:#555;">
+          <i class="bi bi-box-seam me-1 text-success"></i>
+          <strong>{{ t.item_title }}</strong>
+          {% if t.message %}
+            <br><span class="text-muted">{{ t.message }}</span>
+          {% endif %}
+        </div>
+        {% if t.status == 'pending' %}
+        <div class="ms-3 mt-2">
+          <form method="post" action="{{ url_for('close_ticket', ticket_id=t.id) }}" class="d-inline">
+            <button class="btn btn-sm btn-outline-success">
+              <i class="bi bi-check2 me-1"></i>Marcar como gestionado
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <div style="font-size:3rem">🎫</div>
+      <p class="mt-2">No hay solicitudes aún</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- CATEGORIES TAB -->
+<div id="tab-categories" style="display:none">
+  <div class="admin-card" style="max-width:480px">
+    <h6 class="fw-bold mb-3">Categorías actuales</h6>
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      {% for cat in categories %}
+      <div class="d-flex align-items-center gap-1 badge bg-light text-dark border px-3 py-2"
+           style="font-size:.85rem;border-radius:20px!important">
+        {{ cat.name }}
+        <form method="post" action="{{ url_for('delete_category', cat_id=cat.id) }}"
+              onsubmit="return confirm('¿Eliminar «{{ cat.name }}»?')" class="d-inline ms-1">
+          <button class="btn p-0 border-0 bg-transparent text-danger" style="line-height:1;font-size:.85rem;">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    <h6 class="fw-bold mb-2">Añadir categoría</h6>
+    <form method="post" action="{{ url_for('add_category') }}" class="d-flex gap-2">
+      <input type="text" name="name" class="form-control" placeholder="Nueva categoría" required>
+      <button class="btn text-white fw-semibold px-3"
+              style="background:#27ae60;border-radius:10px;white-space:nowrap">
+        <i class="bi bi-plus-lg"></i> Añadir
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(id, btn) {
+  ['tab-items','tab-tickets','tab-categories'].forEach(t => {
+    document.getElementById(t).style.display = t === id ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+{% endblock %}

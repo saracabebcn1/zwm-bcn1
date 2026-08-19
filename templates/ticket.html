@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Solicitar: {{ item.title }} · ZeroWaste Market BCN1{% endblock %}
+
+{% block head %}
+<style>
+  .ticket-card { background:#fff; border-radius:16px; padding:2rem;
+                  box-shadow:0 2px 12px rgba(0,0,0,.08); max-width:580px; margin:auto; }
+  .ticket-card h3 { font-weight:800; }
+  .item-preview { background:#eafaf1; border-radius:10px; padding:.9rem 1.1rem;
+                   border-left:4px solid #27ae60; margin-bottom:1.5rem; }
+  .form-label { font-weight:600; font-size:.88rem; color:#333; }
+  .btn-submit {
+    background:linear-gradient(135deg,#1a7a4a,#27ae60);
+    border:none; color:#fff; font-weight:700; border-radius:12px;
+    padding:.7rem; width:100%; font-size:1rem; transition:opacity .2s;
+  }
+  .btn-submit:hover { opacity:.88; color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Artículos</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('item_detail', item_id=item.id) }}">{{ item.title }}</a></li>
+    <li class="breadcrumb-item active">Solicitar</li>
+  </ol>
+</nav>
+
+<div class="ticket-card">
+  <div class="text-center mb-3">
+    <span style="font-size:2.5rem">🙋</span>
+    <h3 class="mt-2">Solicitar artículo</h3>
+    <p class="text-muted" style="font-size:.88rem">Rellena el formulario y el equipo de gestión te contactará</p>
+  </div>
+
+  <div class="item-preview">
+    <strong><i class="bi bi-box-seam me-2"></i>{{ item.title }}</strong>
+    {% if item.cat_name %}<span class="text-muted ms-2">· {{ item.cat_name }}</span>{% endif %}
+    {% if item.measurements %}<div class="mt-1 text-muted" style="font-size:.83rem">📐 {{ item.measurements }}</div>{% endif %}
+  </div>
+
+  <form method="post" novalidate>
+    <div class="mb-3">
+      <label class="form-label">Nombre completo <span class="text-danger">*</span></label>
+      <input type="text" name="name" class="form-control" placeholder="Tu nombre" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Alias Amazon <span class="text-danger">*</span></label>
+      <input type="text" name="alias" class="form-control" placeholder="ej: jlopez" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Departamento / Área <span class="text-danger">*</span></label>
+      <input type="text" name="department" class="form-control" placeholder="ej: Inbound, IT, Operations…" required>
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Mensaje (opcional)</label>
+      <textarea name="message" class="form-control" rows="3"
+                placeholder="¿Para qué necesitas el artículo? ¿Tienes alguna pregunta?"></textarea>
+    </div>
+    <button type="submit" class="btn btn-submit">
+      <i class="bi bi-send me-2"></i>Enviar solicitud
+    </button>
+    <a href="{{ url_for('item_detail', item_id=item.id) }}"
+       class="btn btn-outline-secondary w-100 mt-2">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
