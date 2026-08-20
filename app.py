@@ -23,9 +23,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def get_db():
     if "db" not in g:
-        g.db = psycopg2.connect(DATABASE_URL,
-                                cursor_factory=psycopg2.extras.RealDictCursor,
-                                sslmode="require")
+        url = DATABASE_URL
+        if "sslmode" not in url:
+            url += ("&" if "?" in url else "?") + "sslmode=require"
+        g.db = psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
     return g.db
 
 @app.teardown_appcontext
