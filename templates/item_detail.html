@@ -40,7 +40,7 @@
     <div class="photo-main mb-3 d-flex align-items-center justify-content-center" style="min-height:300px;">
       {% if photos %}
         <img id="mainPhoto"
-             src="{{ url_for('uploaded_file', filename=photos[0].filename) }}"
+             src="{{ photo_url(photos[0].filename) }}"
              alt="{{ item.title }}">
       {% else %}
         <div class="d-flex flex-column align-items-center justify-content-center w-100" style="height:300px;color:#ccc;">
@@ -52,7 +52,7 @@
     {% if photos|length > 1 %}
     <div class="d-flex gap-2 flex-wrap">
       {% for p in photos %}
-        <img src="{{ url_for('uploaded_file', filename=p.filename) }}"
+        <img src="{{ photo_url(p.filename) }}"
              class="photo-thumb {{ 'active' if loop.first }}"
              onclick="switchPhoto(this)"
              alt="Foto {{ loop.index }}">

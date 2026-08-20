@@ -1,4 +1,5 @@
 import os
+import io
 import uuid
 from datetime import datetime
 from flask import (Flask, render_template, request, redirect, url_for,
@@ -7,12 +8,17 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import psycopg2
 import psycopg2.extras
+import requests as http_client
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "zwm-bcn1-secret-2026")
 
-ADMIN_CODE   = os.environ.get("ADMIN_CODE", "BCN1admin2026")
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
+ADMIN_CODE      = os.environ.get("ADMIN_CODE", "BCN1admin2026")
+DATABASE_URL    = os.environ.get("DATABASE_URL", "")
+SUPABASE_URL    = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY    = os.environ.get("SUPABASE_SERVICE_KEY", "")
+SUPABASE_BUCKET = "photos"
+
 UPLOAD_FOLDER = os.path.join(app.root_path, "static", "uploads")
 ALLOWED_EXT   = {"png", "jpg", "jpeg", "webp", "gif"}
 MAX_IMG_SIZE  = (1200, 1200)
@@ -99,16 +105,66 @@ def allowed(filename):
     return "." in filename and filename.rsplit(".",1)[1].lower() in ALLOWED_EXT
 
 def save_photo(file):
-    ext   = file.filename.rsplit(".",1)[1].lower()
+    """Sube foto a Supabase Storage y devuelve la URL pública (o nombre local como fallback)."""
+    ext  = file.filename.rsplit(".", 1)[1].lower()
     fname = f"{uuid.uuid4().hex}.{ext}"
-    path  = os.path.join(UPLOAD_FOLDER, fname)
-    img   = Image.open(file)
+
+    img = Image.open(file)
     img.thumbnail(MAX_IMG_SIZE, Image.LANCZOS)
-    img.save(path, optimize=True, quality=85)
-    return fname
+
+    if SUPABASE_URL and SUPABASE_KEY:
+        fmt_map = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG", "webp": "WEBP", "gif": "GIF"}
+        ct_map  = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                   "webp": "image/webp", "gif": "image/gif"}
+        buf = io.BytesIO()
+        img.save(buf, format=fmt_map.get(ext, "JPEG"), optimize=True, quality=85)
+        buf.seek(0)
+        r = http_client.post(
+            f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{fname}",
+            headers={"Authorization": f"Bearer {SUPABASE_KEY}",
+                     "Content-Type": ct_map.get(ext, "image/jpeg")},
+            data=buf.read()
+        )
+        r.raise_for_status()
+        return f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{fname}"
+    else:
+        # Fallback local (dev)
+        path = os.path.join(UPLOAD_FOLDER, fname)
+        img.save(path, optimize=True, quality=85)
+        return fname
+
+def delete_photo(filename_or_url):
+    """Elimina foto de Supabase Storage o del disco local."""
+    if SUPABASE_URL and SUPABASE_KEY and filename_or_url.startswith("http"):
+        fname = filename_or_url.split(f"/object/public/{SUPABASE_BUCKET}/")[-1]
+        try:
+            http_client.delete(
+                f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{fname}",
+                headers={"Authorization": f"Bearer {SUPABASE_KEY}"}
+            )
+        except Exception:
+            pass
+    else:
+        try:
+            os.remove(os.path.join(UPLOAD_FOLDER, filename_or_url))
+        except FileNotFoundError:
+            pass
 
 def is_admin():
     return session.get("admin") is True
+
+# ── context processor ─────────────────────────────────────────────────────────
+
+@app.context_processor
+def inject_globals():
+    def photo_url(filename):
+        """Devuelve URL usable en <img src>: Supabase URL directa o ruta local."""
+        if not filename:
+            return ""
+        if filename.startswith("http"):
+            return filename
+        return url_for("uploaded_file", filename=filename)
+    return {"photo_url": photo_url, "now": datetime.now()}
 
 # ── routes: public ────────────────────────────────────────────────────────────
 
@@ -249,8 +305,7 @@ def delete_item(item_id):
     if not is_admin(): abort(403)
     photos = q("SELECT filename FROM photos WHERE item_id=%s", (item_id,))
     for p in photos:
-        try: os.remove(os.path.join(UPLOAD_FOLDER, p["filename"]))
-        except FileNotFoundError: pass
+        delete_photo(p["filename"])
     q("DELETE FROM items WHERE id=%s", (item_id,), commit=True)
     flash("Artículo eliminado.", "info")
     return redirect(url_for("admin_panel"))
@@ -279,10 +334,6 @@ def delete_category(cat_id):
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
-
-@app.context_processor
-def inject_now():
-    return {"now": datetime.now()}
 
 # ── boot ──────────────────────────────────────────────────────────────────────
 

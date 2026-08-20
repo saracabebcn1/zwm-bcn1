@@ -42,7 +42,7 @@
     <a href="{{ url_for('item_detail', item_id=item.id) }}" class="text-decoration-none text-dark">
       <div class="card item-card h-100">
         {% if item.cover %}
-          <img src="{{ url_for('uploaded_file', filename=item.cover) }}"
+          <img src="{{ photo_url(item.cover) }}"
                class="card-img-top" alt="{{ item.title }}">
         {% else %}
           <div class="no-cover"><i class="bi bi-image"></i></div>

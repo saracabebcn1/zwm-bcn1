@@ -56,7 +56,7 @@
       {% for item in items %}
       <div class="item-row">
         {% if item.cover %}
-          <img src="{{ url_for('uploaded_file', filename=item.cover) }}" class="item-thumb" alt="">
+          <img src="{{ photo_url(item.cover) }}" class="item-thumb" alt="">
         {% else %}
           <div class="item-thumb-empty"><i class="bi bi-image"></i></div>
         {% endif %}
