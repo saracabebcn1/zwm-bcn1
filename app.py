@@ -23,10 +23,17 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def get_db():
     if "db" not in g:
-        url = DATABASE_URL
-        if "sslmode" not in url:
-            url += ("&" if "?" in url else "?") + "sslmode=require"
-        g.db = psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
+        import urllib.parse
+        p = urllib.parse.urlparse(DATABASE_URL)
+        g.db = psycopg2.connect(
+            host=p.hostname,
+            port=p.port or 5432,
+            user=p.username,
+            password=p.password,
+            dbname=(p.path or "/postgres").lstrip("/") or "postgres",
+            sslmode="require",
+            cursor_factory=psycopg2.extras.RealDictCursor
+        )
     return g.db
 
 @app.teardown_appcontext
