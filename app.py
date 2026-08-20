@@ -17,7 +17,7 @@ ADMIN_CODE      = os.environ.get("ADMIN_CODE", "BCN1admin2026")
 DATABASE_URL    = os.environ.get("DATABASE_URL", "")
 SUPABASE_URL    = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY    = os.environ.get("SUPABASE_SERVICE_KEY", "")
-SUPABASE_BUCKET = "photos"
+SUPABASE_BUCKET = "Photos"
 
 UPLOAD_FOLDER = os.path.join(app.root_path, "static", "uploads")
 ALLOWED_EXT   = {"png", "jpg", "jpeg", "webp", "gif"}
@@ -119,13 +119,17 @@ def save_photo(file):
         buf = io.BytesIO()
         img.save(buf, format=fmt_map.get(ext, "JPEG"), optimize=True, quality=85)
         buf.seek(0)
+        raw = buf.read()
         r = http_client.post(
             f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{fname}",
             headers={"Authorization": f"Bearer {SUPABASE_KEY}",
-                     "Content-Type": ct_map.get(ext, "image/jpeg")},
-            data=buf.read()
+                     "Content-Type": ct_map.get(ext, "image/jpeg"),
+                     "x-upsert": "true"},
+            data=raw
         )
-        r.raise_for_status()
+        if not r.ok:
+            app.logger.error(f"Supabase upload error {r.status_code}: {r.text}")
+            raise Exception(f"Error subiendo foto: {r.status_code} {r.text}")
         return f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{fname}"
     else:
         # Fallback local (dev)
