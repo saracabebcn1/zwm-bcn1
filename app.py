@@ -93,6 +93,8 @@ def init_db():
             created_at TEXT NOT NULL,
             status     TEXT NOT NULL DEFAULT 'pending'
         )""")
+    # Safe migration: add quantity column if it doesn't exist yet
+    cur.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1")
     defaults = ["Sillas","Mesas","Estanterías","Armarios","Carros",
                 "Monitores","Equipos IT","Iluminación","Contenedores","Otros"]
     for cat in defaults:
@@ -243,31 +245,31 @@ def item_detail(item_id):
     ticket_count = q("SELECT COUNT(*) AS n FROM tickets WHERE item_id=%s", (item_id,), one=True)["n"]
     return render_template("item_detail.html", item=item, photos=photos, ticket_count=ticket_count)
 
+TT_URL = "https://t.corp.amazon.com/D513389296"
+
 @app.route("/ticket/<int:item_id>", methods=["GET","POST"])
 def ticket(item_id):
-    item = q("SELECT * FROM items WHERE id=%s", (item_id,), one=True)
+    item = q("""SELECT i.*, c.name AS cat_name
+                FROM items i LEFT JOIN categories c ON c.id=i.category_id
+                WHERE i.id=%s""", (item_id,), one=True)
     if not item:
         abort(404)
     if item["status"] != "available":
         flash("Este artículo ya no está disponible.", "warning")
         return redirect(url_for("item_detail", item_id=item_id))
     if request.method == "POST":
-        name  = request.form.get("name","").strip()
-        alias = request.form.get("alias","").strip()
-        dept  = request.form.get("department","").strip()
-        msg   = request.form.get("message","").strip()
-        if not name or not alias or not dept:
-            flash("Rellena los campos obligatorios.", "danger")
+        # Decrement quantity; only mark reserved when stock reaches 0
+        qty = item["quantity"] or 1
+        new_qty = max(0, qty - 1)
+        if new_qty == 0:
+            q("UPDATE items SET quantity=%s, status='reserved' WHERE id=%s",
+              (new_qty, item_id), commit=True)
         else:
-            q("""INSERT INTO tickets(item_id,name,alias,department,message,created_at,status)
-                 VALUES(%s,%s,%s,%s,%s,%s,%s)""",
-              (item_id, name, alias, dept, msg,
-               datetime.now().isoformat(timespec="seconds"), "pending"), commit=True)
-            q("UPDATE items SET status='reserved' WHERE id=%s AND status='available'",
-              (item_id,), commit=True)
-            flash("✅ Solicitud enviada. El equipo de gestión se pondrá en contacto contigo.", "success")
-            return redirect(url_for("item_detail", item_id=item_id))
-    return render_template("ticket.html", item=item)
+            q("UPDATE items SET quantity=%s WHERE id=%s",
+              (new_qty, item_id), commit=True)
+        flash("✅ Solicitud registrada. Recuerda completar el TT en Amazon.", "success")
+        return redirect(url_for("category_items", cat_id=item["category_id"]))
+    return render_template("ticket.html", item=item, tt_url=TT_URL)
 
 # ── routes: admin ─────────────────────────────────────────────────────────────
 
@@ -315,9 +317,10 @@ def publish():
             flash("El título y la categoría son obligatorios.", "danger")
             return render_template("publish.html", categories=categories)
         cur = get_db().cursor()
-        cur.execute("""INSERT INTO items(title,category_id,description,measurements,status,created_at)
-                       VALUES(%s,%s,%s,%s,%s,%s) RETURNING id""",
-                    (title, cat_id, desc, measures, "available",
+        qty = max(1, int(request.form.get("quantity", 1) or 1))
+        cur.execute("""INSERT INTO items(title,category_id,description,measurements,status,quantity,created_at)
+                       VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                    (title, cat_id, desc, measures, "available", qty,
                      datetime.now().isoformat(timespec="seconds")))
         item_id = cur.fetchone()["id"]
         get_db().commit()

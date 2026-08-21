@@ -1,68 +1,189 @@
 {% extends "base.html" %}
-{% block title %}Solicitar: {{ item.title }} · ZeroWaste Market BCN1{% endblock %}
+{% block title %}Solicitar artículo · ZeroWaste Market BCN1{% endblock %}
 
 {% block head %}
 <style>
-  .ticket-card { background:#fff; border-radius:16px; padding:2rem;
-                  box-shadow:0 2px 12px rgba(0,0,0,.08); max-width:580px; margin:auto; }
-  .ticket-card h3 { font-weight:800; }
-  .item-preview { background:#eafaf1; border-radius:10px; padding:.9rem 1.1rem;
-                   border-left:4px solid #27ae60; margin-bottom:1.5rem; }
-  .form-label { font-weight:600; font-size:.88rem; color:#333; }
-  .btn-submit {
-    background:linear-gradient(135deg,#1a7a4a,#27ae60);
-    border:none; color:#fff; font-weight:700; border-radius:12px;
-    padding:.7rem; width:100%; font-size:1rem; transition:opacity .2s;
+  .ticket-wrap { max-width: 680px; margin: 0 auto; }
+  .item-summary {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.1rem 1.25rem; display: flex; gap: 1rem; align-items: center;
+    margin-bottom: 1.5rem;
   }
-  .btn-submit:hover { opacity:.88; color:#fff; }
+  .item-summary img {
+    width: 72px; height: 72px; object-fit: cover; border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .item-summary .no-thumb {
+    width: 72px; height: 72px; border-radius: 8px; background: #f5f5f5;
+    display: flex; align-items: center; justify-content: center;
+    color: #ccc; font-size: 1.5rem; border: 1px solid var(--border); flex-shrink: 0;
+  }
+  .item-summary .info { flex: 1; }
+  .item-summary .info h2 { font-size: .95rem; font-weight: 700; margin: 0 0 .2rem; color: #111; }
+  .item-summary .info .cat { font-size: .76rem; color: #888; }
+
+  .steps {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+  }
+  .steps h3 { font-size: .85rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 1rem; }
+  .step-list { display: flex; flex-direction: column; gap: .75rem; counter-reset: steps; }
+  .step {
+    display: flex; align-items: flex-start; gap: .85rem;
+    counter-increment: steps;
+  }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: var(--amazon-dark); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem; font-weight: 700;
+  }
+  .step-text { font-size: .84rem; color: #333; line-height: 1.5; padding-top: 3px; }
+  .step-text strong { color: #111; }
+
+  .template-box {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+  }
+  .template-box h3 { font-size: .85rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .6px; margin-bottom: .85rem; }
+  .template-text {
+    background: #f8f9fa; border: 1px solid #e3e6ea; border-radius: 8px;
+    padding: 1rem 1.1rem; font-family: monospace; font-size: .8rem;
+    line-height: 1.7; color: #333; white-space: pre-wrap; margin-bottom: .85rem;
+  }
+  .btn-copy {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: var(--amazon-dark); color: #fff;
+    border: none; border-radius: 8px; padding: .5rem 1.1rem;
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn-copy:hover { opacity: .85; }
+  .btn-copy.copied { background: var(--green); }
+
+  .actions-box {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    display: flex; flex-direction: column; gap: .85rem;
+  }
+  .btn-tt {
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    background: var(--amazon-orange); color: #111;
+    border: none; border-radius: 10px; padding: .75rem;
+    font-size: .95rem; font-weight: 700; cursor: pointer;
+    text-decoration: none; transition: opacity .15s; width: 100%;
+  }
+  .btn-tt:hover { opacity: .88; color: #111; }
+  .btn-confirm {
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    background: var(--green); color: #fff;
+    border: none; border-radius: 10px; padding: .65rem;
+    font-size: .88rem; font-weight: 600; cursor: pointer; width: 100%;
+    transition: background .15s;
+  }
+  .btn-confirm:hover { background: var(--green-light); }
+  .confirm-note { font-size: .75rem; color: #999; text-align: center; }
 </style>
 {% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-3">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Artículos</a></li>
-    <li class="breadcrumb-item"><a href="{{ url_for('item_detail', item_id=item.id) }}">{{ item.title }}</a></li>
-    <li class="breadcrumb-item active">Solicitar</li>
-  </ol>
-</nav>
+{% set cover = item.cover if item.cover is defined else none %}
+{% set photos = [] %}
 
-<div class="ticket-card">
-  <div class="text-center mb-3">
-    <span style="font-size:2.5rem">🙋</span>
-    <h3 class="mt-2">Solicitar artículo</h3>
-    <p class="text-muted" style="font-size:.88rem">Rellena el formulario y el equipo de gestión te contactará</p>
-  </div>
+<div style="max-width:680px;margin:0 auto;">
 
-  <div class="item-preview">
-    <strong><i class="bi bi-box-seam me-2"></i>{{ item.title }}</strong>
-    {% if item.cat_name %}<span class="text-muted ms-2">· {{ item.cat_name }}</span>{% endif %}
-    {% if item.measurements %}<div class="mt-1 text-muted" style="font-size:.83rem">📐 {{ item.measurements }}</div>{% endif %}
-  </div>
-
-  <form method="post" novalidate>
-    <div class="mb-3">
-      <label class="form-label">Nombre completo <span class="text-danger">*</span></label>
-      <input type="text" name="name" class="form-control" placeholder="Tu nombre" required>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Alias Amazon <span class="text-danger">*</span></label>
-      <input type="text" name="alias" class="form-control" placeholder="ej: jlopez" required>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Departamento / Área <span class="text-danger">*</span></label>
-      <input type="text" name="department" class="form-control" placeholder="ej: Inbound, IT, Operations…" required>
-    </div>
-    <div class="mb-4">
-      <label class="form-label">Mensaje (opcional)</label>
-      <textarea name="message" class="form-control" rows="3"
-                placeholder="¿Para qué necesitas el artículo? ¿Tienes alguna pregunta?"></textarea>
-    </div>
-    <button type="submit" class="btn btn-submit">
-      <i class="bi bi-send me-2"></i>Enviar solicitud
-    </button>
+  <!-- Back -->
+  <div style="margin-bottom:1.25rem;">
     <a href="{{ url_for('item_detail', item_id=item.id) }}"
-       class="btn btn-outline-secondary w-100 mt-2">Cancelar</a>
-  </form>
+       style="display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:500;color:var(--green);text-decoration:none;padding:4px 12px;border-radius:8px;border:1.5px solid #c8e6c9;background:#fff;">
+      <i class="bi bi-arrow-left"></i> Volver al artículo
+    </a>
+  </div>
+
+  <!-- Item summary -->
+  <div class="item-summary">
+    {% set p = item.get('cover') if item.get else none %}
+    {% if p %}
+      <img src="{{ photo_url(p) }}" alt="{{ item.title }}">
+    {% else %}
+      <div class="no-thumb"><i class="bi bi-image"></i></div>
+    {% endif %}
+    <div class="info">
+      <h2>{{ item.title }}</h2>
+      <div class="cat"><i class="bi bi-tag me-1"></i>{{ item.cat_name or '—' }}
+        {% if item.quantity and item.quantity > 1 %}
+          · <strong style="color:var(--green)">{{ item.quantity }} unidades disponibles</strong>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <h3><i class="bi bi-list-ol me-1"></i>Cómo solicitar este artículo</h3>
+    <div class="step-list">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Copia la <strong>plantilla de solicitud</strong> con el botón de abajo.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Pulsa <strong>"Abrir TT en Amazon"</strong> — se abrirá el ticket en una nueva pestaña.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Dentro del TT, haz clic en <strong>"Copy to New"</strong> y pega la plantilla. Completa los campos y envía.</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Vuelve aquí y pulsa <strong>"He completado el TT"</strong> para registrar tu solicitud.</div></div>
+    </div>
+  </div>
+
+  <!-- Template -->
+  <div class="template-box">
+    <h3><i class="bi bi-clipboard me-1"></i>Plantilla de solicitud</h3>
+    <div class="template-text" id="templateText">Solicitud de material reutilizable · ZeroWaste Market BCN1
+──────────────────────────────────────────────────────
+Artículo: {{ item.title }}
+Categoría: {{ item.cat_name or '—' }}
+{% if item.measurements %}Medidas / Info: {{ item.measurements }}
+{% endif %}
+──────────────────────────────────────────────────────
+Login (Amazon del solicitante): 
+Departamento solicitante: 
+Descripción / uso previsto: 
+Nº de unidades solicitadas: 
+Aprobación AM (Sí / No · Login del AM que aprueba): 
+──────────────────────────────────────────────────────</div>
+    <button class="btn-copy" id="copyBtn" onclick="copyTemplate()">
+      <i class="bi bi-clipboard" id="copyIcon"></i> Copiar plantilla
+    </button>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions-box">
+    <a href="{{ tt_url }}" target="_blank" class="btn-tt">
+      <i class="bi bi-box-arrow-up-right"></i> Abrir TT en Amazon
+    </a>
+    <form method="post">
+      <button type="submit" class="btn-confirm">
+        <i class="bi bi-check-circle"></i> He completado el TT — registrar solicitud
+      </button>
+    </form>
+    <div class="confirm-note">
+      Al confirmar, se descontará 1 unidad del stock disponible.
+      {% if item.quantity and item.quantity <= 1 %}El artículo pasará a <strong>Reservado</strong>.{% endif %}
+    </div>
+  </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyTemplate() {
+  const text = document.getElementById('templateText').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const ico = document.getElementById('copyIcon');
+    btn.classList.add('copied');
+    ico.className = 'bi bi-check2';
+    btn.innerHTML = '<i class="bi bi-check2"></i> ¡Copiado!';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="bi bi-clipboard"></i> Copiar plantilla';
+    }, 2500);
+  });
+}
+</script>
 {% endblock %}

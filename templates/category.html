@@ -134,7 +134,7 @@
         <h2 class="item-name">{{ item.title }}</h2>
         <span class="item-cat-tag"><i class="bi bi-tag me-1"></i>{{ cat.name }}</span>
       </div>
-      <div>
+      <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
         {% set s = item.status %}
         <span class="status-badge {{ s }}">
           <i class="bi bi-circle-fill" style="font-size:.4rem"></i>
@@ -146,6 +146,11 @@
       </div>
       {% if item.description %}
         <p class="item-desc">{{ item.description }}</p>
+      {% endif %}
+      {% if item.quantity and item.quantity > 1 %}
+        <div style="font-size:.76rem;color:var(--green);font-weight:600;">
+          <i class="bi bi-layers me-1"></i>{{ item.quantity }} unidades disponibles
+        </div>
       {% endif %}
       {% if item.measurements %}
         <div class="item-meta">
