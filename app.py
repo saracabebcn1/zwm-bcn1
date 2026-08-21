@@ -217,7 +217,7 @@ def category_items(cat_id):
     params = [cat_id]
     if status_filter != "all":
         base_sql  += " AND i.status=%s"
-        count_sql += " AND i.status=%s"
+        count_sql += " AND status=%s"
         params.append(status_filter)
 
     total       = q(count_sql, params, one=True)["n"]
