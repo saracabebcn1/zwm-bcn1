@@ -311,8 +311,8 @@ def publish():
         cat_id   = request.form.get("category_id") or None
         desc     = request.form.get("description","").strip()
         measures = request.form.get("measurements","").strip()
-        if not title:
-            flash("El título es obligatorio.", "danger")
+        if not title or not cat_id:
+            flash("El título y la categoría son obligatorios.", "danger")
             return render_template("publish.html", categories=categories)
         cur = get_db().cursor()
         cur.execute("""INSERT INTO items(title,category_id,description,measurements,status,created_at)
