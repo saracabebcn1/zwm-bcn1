@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}{{ cat.name }} · ZeroWaste Market BCN1{% endblock %}
+
+{% block head %}
+<style>
+  .item-row {
+    background:#fff; border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; display:flex; transition:box-shadow .18s;
+  }
+  .item-row:hover { box-shadow:0 4px 18px rgba(0,0,0,.09); }
+
+  .item-img {
+    width:210px; flex-shrink:0; position:relative;
+    border-right:1px solid var(--border);
+  }
+  .item-img img { width:100%; height:100%; object-fit:cover; display:block; }
+  .item-img .no-img {
+    width:100%; height:100%; min-height:170px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:2.8rem; color:#ccc;
+  }
+
+  .item-content {
+    flex:1; padding:1.1rem 1.3rem;
+    display:flex; flex-direction:column; gap:.45rem;
+  }
+  .item-top { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; }
+  .item-name { font-weight:700; font-size:1rem; color:#111; margin:0; line-height:1.35; }
+  .item-cat-tag {
+    font-size:.7rem; font-weight:600; background:#f0f0f0; color:#666;
+    padding:2px 10px; border-radius:20px; white-space:nowrap; flex-shrink:0;
+  }
+  .item-desc { font-size:.83rem; color:#444; line-height:1.55; margin:0; flex:1; }
+  .item-meta {
+    display:flex; flex-wrap:wrap; gap:.4rem 1.25rem;
+    font-size:.76rem; color:#777;
+  }
+  .item-meta span { display:flex; align-items:center; gap:.3rem; }
+  .item-actions {
+    display:flex; align-items:center; gap:.75rem;
+    padding-top:.65rem; border-top:1px solid #f3f3f3;
+    flex-wrap:wrap;
+  }
+  .btn-tt {
+    display:inline-flex; align-items:center; gap:.45rem;
+    background:var(--amazon-orange); color:#111;
+    border:none; border-radius:8px;
+    font-size:.82rem; font-weight:700;
+    padding:.5rem 1.2rem; cursor:pointer; text-decoration:none;
+    transition:opacity .15s;
+  }
+  .btn-tt:hover { opacity:.88; color:#111; }
+  .btn-tt:disabled, .btn-tt.disabled {
+    background:#e0e0e0; color:#aaa; cursor:not-allowed; opacity:1;
+  }
+  .btn-detail {
+    display:inline-flex; align-items:center; gap:.4rem;
+    background:#fff; color:#333;
+    border:1.5px solid var(--border); border-radius:8px;
+    font-size:.8rem; font-weight:500;
+    padding:.45rem 1rem; text-decoration:none;
+    transition:border-color .15s;
+  }
+  .btn-detail:hover { border-color:#999; color:#111; }
+  .item-posted { font-size:.7rem; color:#bbb; margin-left:auto; display:flex; align-items:center; gap:.3rem; }
+
+  /* Status badges */
+  .status-badge { display:inline-flex; align-items:center; gap:.3rem; font-size:.71rem; font-weight:600; padding:3px 10px; border-radius:20px; }
+  .status-badge.available   { background:#e6f4ed; color:#1a7a4a; }
+  .status-badge.reserved    { background:#fff4e0; color:#b45309; }
+  .status-badge.in_progress { background:#e8f0fe; color:#1a56db; }
+  .status-badge.delivered   { background:#f0f0f0; color:#666; }
+
+  @media (max-width:600px) {
+    .item-row { flex-direction:column; }
+    .item-img { width:100%; border-right:none; border-bottom:1px solid var(--border); }
+    .item-img .no-img { min-height:140px; }
+    .item-img img { max-height:200px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set style = cat_style(cat.name) %}
+
+<!-- Back + title -->
+<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+  <a href="{{ url_for('index') }}" style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:500;color:var(--green);text-decoration:none;padding:4px 12px;border-radius:8px;border:1.5px solid #c8e6c9;background:#fff;">
+    <i class="bi bi-arrow-left"></i> Categorías
+  </a>
+  <span style="color:#ddd">›</span>
+  <div>
+    <div style="font-weight:700;font-size:1rem;color:#111;">
+      <i class="bi {{ style.icon }} me-1" style="color:{{ style.color }}"></i>{{ cat.name }}
+    </div>
+    <div style="font-size:.75rem;color:#888;">
+      {{ status_counts.get('available',0) }} disponible{{ 's' if status_counts.get('available',0) != 1 }}
+      {% if status_counts.get('reserved',0) %} · {{ status_counts.get('reserved',0) }} reservado{{ 's' if status_counts.get('reserved',0) != 1 }}{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Status filter -->
+<div class="filter-section" style="margin-bottom:1.25rem;">
+  <div class="filter-label">Estado</div>
+  <div class="filter-chips">
+    {% for val, label in [('available','Disponible'),('reserved','Reservado'),('in_progress','En proceso'),('all','Todos')] %}
+    <a href="{{ url_for('category_items', cat_id=cat.id, status=val, page=1) }}"
+       class="chip {{ 'active' if active_status==val }}">{{ label }}
+       {% set n = status_counts.get(val, 0) if val != 'all' else (status_counts.values()|sum) %}
+       {% if n %}<span style="opacity:.6;font-size:.7em;margin-left:2px">({{ n }})</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Item list -->
+{% if items %}
+<div style="display:flex;flex-direction:column;gap:1rem;">
+  {% for item in items %}
+  <div class="item-row">
+    <div class="item-img">
+      {% if item.cover %}
+        <img src="{{ photo_url(item.cover) }}" alt="{{ item.title }}">
+      {% else %}
+        <div class="no-img" style="background:{{ style.bg }}">
+          <i class="bi {{ style.icon }}" style="color:{{ style.color }};opacity:.35"></i>
+        </div>
+      {% endif %}
+    </div>
+    <div class="item-content">
+      <div class="item-top">
+        <h2 class="item-name">{{ item.title }}</h2>
+        <span class="item-cat-tag"><i class="bi bi-tag me-1"></i>{{ cat.name }}</span>
+      </div>
+      <div>
+        {% set s = item.status %}
+        <span class="status-badge {{ s }}">
+          <i class="bi bi-circle-fill" style="font-size:.4rem"></i>
+          {% if s == 'available' %}Disponible
+          {% elif s == 'reserved' %}Reservado
+          {% elif s == 'in_progress' %}En proceso
+          {% else %}Entregado{% endif %}
+        </span>
+      </div>
+      {% if item.description %}
+        <p class="item-desc">{{ item.description }}</p>
+      {% endif %}
+      {% if item.measurements %}
+        <div class="item-meta">
+          <span><i class="bi bi-rulers"></i>{{ item.measurements }}</span>
+        </div>
+      {% endif %}
+      <div class="item-actions">
+        {% if item.status == 'available' %}
+          <a href="{{ url_for('ticket', item_id=item.id) }}" class="btn-tt">
+            <i class="bi bi-ticket-detailed"></i> Abrir TT
+          </a>
+        {% else %}
+          <span class="btn-tt disabled"><i class="bi bi-ticket-detailed"></i> Abrir TT</span>
+        {% endif %}
+        <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn-detail">
+          <i class="bi bi-eye"></i> Ver detalle
+        </a>
+        <span class="item-posted">
+          <i class="bi bi-clock"></i>{{ item.created_at[:10] }}
+        </span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination-wrap">
+  <a href="{{ url_for('category_items', cat_id=cat.id, status=active_status, page=page-1) }}"
+     class="page-btn {{ 'disabled' if page <= 1 }}"><i class="bi bi-chevron-left"></i></a>
+  {% for p in range(1, total_pages+1) %}
+    {% if p == 1 or p == total_pages or (p >= page-2 and p <= page+2) %}
+      <a href="{{ url_for('category_items', cat_id=cat.id, status=active_status, page=p) }}"
+         class="page-btn {{ 'active' if p == page }}">{{ p }}</a>
+    {% elif p == page-3 or p == page+3 %}
+      <span class="page-btn disabled">…</span>
+    {% endif %}
+  {% endfor %}
+  <a href="{{ url_for('category_items', cat_id=cat.id, status=active_status, page=page+1) }}"
+     class="page-btn {{ 'disabled' if page >= total_pages }}"><i class="bi bi-chevron-right"></i></a>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📦</div>
+  <h5>No hay artículos {{ 'disponibles' if active_status == 'available' else '' }}</h5>
+  <p style="font-size:.85rem">Prueba con otro filtro de estado.</p>
+  <a href="{{ url_for('category_items', cat_id=cat.id, status='all') }}"
+     style="font-size:.82rem;color:var(--green)">Ver todos los artículos de esta categoría</a>
+</div>
+{% endif %}
+
+{% endblock %}

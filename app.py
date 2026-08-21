@@ -157,43 +157,80 @@ def delete_photo(filename_or_url):
 def is_admin():
     return session.get("admin") is True
 
+# ── category styles ───────────────────────────────────────────────────────────
+
+CAT_STYLE = {
+    "Sillas":       {"icon": "bi-chair",     "bg": "#e8f5e9", "color": "#2e7d32"},
+    "Mesas":        {"icon": "bi-table",      "bg": "#fff8e1", "color": "#f57f17"},
+    "Estanterías":  {"icon": "bi-bookshelf",  "bg": "#e3f2fd", "color": "#1565c0"},
+    "Armarios":     {"icon": "bi-archive",    "bg": "#f3e5f5", "color": "#6a1b9a"},
+    "Carros":       {"icon": "bi-cart3",      "bg": "#e8eaf6", "color": "#283593"},
+    "Monitores":    {"icon": "bi-display",    "bg": "#fce4ec", "color": "#c62828"},
+    "Equipos IT":   {"icon": "bi-laptop",     "bg": "#e0f7fa", "color": "#00695c"},
+    "Iluminación":  {"icon": "bi-lightbulb",  "bg": "#fff3e0", "color": "#e65100"},
+    "Contenedores": {"icon": "bi-box-seam",   "bg": "#f1f8e9", "color": "#558b2f"},
+    "Otros":        {"icon": "bi-three-dots", "bg": "#f5f5f5", "color": "#555"},
+}
+DEFAULT_STYLE = {"icon": "bi-grid", "bg": "#f5f5f5", "color": "#555"}
+
 # ── context processor ─────────────────────────────────────────────────────────
 
 @app.context_processor
 def inject_globals():
     def photo_url(filename):
-        """Devuelve URL usable en <img src>: Supabase URL directa o ruta local."""
         if not filename:
             return ""
         if filename.startswith("http"):
             return filename
         return url_for("uploaded_file", filename=filename)
-    return {"photo_url": photo_url, "now": datetime.now()}
+    def cat_style(name):
+        return CAT_STYLE.get(name, DEFAULT_STYLE)
+    return {"photo_url": photo_url, "cat_style": cat_style, "now": datetime.now()}
 
 # ── routes: public ────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
-    cat_id        = request.args.get("cat", "")
+    categories   = q("SELECT * FROM categories ORDER BY name")
+    raw_avail    = q("SELECT category_id, COUNT(*) AS n FROM items WHERE status='available' GROUP BY category_id")
+    avail_by_cat = {str(r["category_id"]): r["n"] for r in raw_avail}
+    raw_counts   = q("SELECT status, COUNT(*) AS n FROM items GROUP BY status")
+    counts       = {r["status"]: r["n"] for r in raw_counts}
+    return render_template("index.html", categories=categories,
+                           avail_by_cat=avail_by_cat, counts=counts)
+
+@app.route("/categoria/<int:cat_id>")
+def category_items(cat_id):
+    cat = q("SELECT * FROM categories WHERE id=%s", (cat_id,), one=True)
+    if not cat:
+        abort(404)
     status_filter = request.args.get("status", "available")
-    sql = """
-        SELECT i.*, c.name AS cat_name,
+    page          = max(1, int(request.args.get("page", 1)))
+    per_page      = 12
+
+    base_sql = """
+        SELECT i.*,
                (SELECT filename FROM photos WHERE item_id=i.id ORDER BY position LIMIT 1) AS cover
-        FROM items i LEFT JOIN categories c ON c.id=i.category_id
-        WHERE 1=1
+        FROM items i WHERE i.category_id=%s
     """
-    params = []
-    if cat_id:
-        sql += " AND i.category_id=%s"; params.append(cat_id)
+    count_sql = "SELECT COUNT(*) AS n FROM items WHERE category_id=%s"
+    params = [cat_id]
     if status_filter != "all":
-        sql += " AND i.status=%s"; params.append(status_filter)
-    sql += " ORDER BY i.created_at DESC"
-    items      = q(sql, params)
-    categories = q("SELECT * FROM categories ORDER BY name")
-    raw_counts = q("SELECT status, COUNT(*) AS n FROM items GROUP BY status")
-    counts     = {r["status"]: r["n"] for r in raw_counts}
-    return render_template("index.html", items=items, categories=categories,
-                           active_cat=cat_id, active_status=status_filter, counts=counts)
+        base_sql  += " AND i.status=%s"
+        count_sql += " AND i.status=%s"
+        params.append(status_filter)
+
+    total       = q(count_sql, params, one=True)["n"]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page        = min(page, total_pages)
+    offset      = (page - 1) * per_page
+    items       = q(base_sql + " ORDER BY i.created_at DESC LIMIT %s OFFSET %s",
+                    params + [per_page, offset])
+    raw_sc      = q("SELECT status, COUNT(*) AS n FROM items WHERE category_id=%s GROUP BY status", (cat_id,))
+    status_counts = {r["status"]: r["n"] for r in raw_sc}
+    return render_template("category.html", cat=cat, items=items,
+                           active_status=status_filter, page=page,
+                           total_pages=total_pages, status_counts=status_counts)
 
 @app.route("/item/<int:item_id>")
 def item_detail(item_id):
